@@ -31,7 +31,7 @@ filetype plugin indent on       " enable detection, plugins and indenting in one
 syntax on
 
 " Change the mapleader from \ to ,
-let mapleader=","
+ let mapleader=","
 
 " Editing behaviour {{{
 set showmode                    " always show what mode we're currently editing in
@@ -83,34 +83,6 @@ nnoremap <C-e> 2<C-e>
 nnoremap <C-y> 2<C-y>
 " }}}
 
-" Folding rules {{{
-set foldenable                  " enable folding
-set foldcolumn=2                " add a fold column
-set foldmethod=marker           " detect triple-{ style fold markers
-set foldlevelstart=99           " start out with everything folded
-set foldopen=block,hor,insert,jump,mark,percent,quickfix,search,tag,undo
-                                " which commands trigger auto-unfold
-function! MyFoldText()
-    let line = getline(v:foldstart)
-
-    let nucolwidth = &fdc + &number * &numberwidth
-    let windowwidth = winwidth(0) - nucolwidth - 3
-    let foldedlinecount = v:foldend - v:foldstart
-
-    " expand tabs into spaces
-    let onetab = strpart('          ', 0, &tabstop)
-    let line = substitute(line, '\t', onetab, 'g')
-
-    let line = strpart(line, 0, windowwidth - 2 -len(foldedlinecount))
-    let fillcharcount = windowwidth - len(line) - len(foldedlinecount) - 4
-    return line . ' …' . repeat(" ",fillcharcount) . foldedlinecount . ' '
-endfunction
-set foldtext=MyFoldText()
-" }}}
-
-" Editor layout {{{
-set termencoding=utf-8
-set encoding=utf-8
 set lazyredraw                  " don't update the display while executing macros
 set laststatus=2                " tell VIM to always put a status line in, even
                                 "    if there is only one window
@@ -152,20 +124,6 @@ set nomodeline                  " disable mode lines (security measure)
 "set ttyfast                     " always use a fast terminal
 set cursorline                  " underline the current line, for quick orientation
 
-" Tame the quickfix window (open/close using ,f)
-nnoremap <silent> <leader>f :QFix<CR>
-
-command! -bang -nargs=? QFix call QFixToggle(<bang>0)
-function! QFixToggle(forced)
-  if exists("g:qfix_win") && a:forced == 0
-    cclose
-    unlet g:qfix_win
-  else
-    copen 10
-    let g:qfix_win = bufnr("$")
-  endif
-endfunction
-" }}}
 
 " Highlighting {{{
 if &t_Co > 2 || has("gui_running")
@@ -173,12 +131,7 @@ if &t_Co > 2 || has("gui_running")
 endif
 " }}}
 
-" Shortcut mappings {{{
-" Since I never use the ; key anyway, this is a real optimization for almost
 " all Vim commands, as I don't have to press the Shift key to form chords to
-" enter ex mode.
-nnoremap ; :
-nnoremap <leader>; ;
 
 " Avoid accidental hits of <F1> while aiming for <Esc>
 noremap! <F1> <Esc>
@@ -252,10 +205,7 @@ nnoremap <silent> <leader>/ :nohlsearch<CR>
 " replace)
 nnoremap <leader>z :%s#\<<C-r>=expand("<cword>")<CR>\>#
 
-" Keep search matches in the middle of the window and pulse the line when moving
-" to them.
-nnoremap n n:call PulseCursorLine()<cr>
-nnoremap N N:call PulseCursorLine()<cr>
+nmap <silent> <leader>n :NERDTreeToggle<CR>
 
 " Quickly get out of insert mode without your fingers having to leave the
 " home row (either use 'jj' or 'jk')
@@ -293,38 +243,14 @@ nnoremap <leader>v V`]
 nnoremap <F5> :GundoToggle<CR>
 " }}}
 
-" NERDTree settings {{{
-" Put focus to the NERD Tree with F3 (tricked by quickly closing it and
-" immediately showing it again, since there is no :NERDTreeFocus command)
-nnoremap <leader>n :NERDTreeClose<CR>:NERDTreeToggle<CR>
-nnoremap <leader>m :NERDTreeClose<CR>:NERDTreeFind<CR>
-nnoremap <leader>N :NERDTreeClose<CR>
 
-" Store the bookmarks file
-let NERDTreeBookmarksFile=expand("$HOME/.vim/NERDTreeBookmarks")
 
-" Show the bookmarks table on startup
-let NERDTreeShowBookmarks=1
 
-" Show hidden files, too
-let NERDTreeShowFiles=1
-let NERDTreeShowHidden=1
 
-" Quit on opening files from the tree
-let NERDTreeQuitOnOpen=1
 
-" Highlight the selected entry in the tree
-let NERDTreeHighlightCursorline=1
 
-" Use a single click to fold/unfold directories and a double click to open
-" files
-let NERDTreeMouseMode=2
 
-" Don't display these kinds of files
-let NERDTreeIgnore=[ '\.pyc$', '\.pyo$', '\.py\$class$', '\.obj$',
-            \ '\.o$', '\.so$', '\.egg$', '^\.git$' ]
 
-" }}}
 
 " TagList settings {{{
 nnoremap <leader>l :TlistClose<CR>:TlistToggle<CR>
@@ -583,8 +509,11 @@ if has("gui_running")
     "colorscheme molokai
     "colorscheme railscat
     "colorscheme kellys
-    colorscheme wombat256
-
+    "colorscheme wombat256
+    
+    " colorscheme railscasts
+    set bg=dark
+    colorscheme solarized
     " Remove toolbar, left scrollbar and right scrollbar
     set guioptions-=T
     set guioptions-=l
@@ -596,45 +525,9 @@ else
     colorscheme molokai_deep
 endif
 
-" Pulse ------------------------------------------------------------------- {{{
 
-function! PulseCursorLine()
-    let current_window = winnr()
 
-    windo set nocursorline
-    execute current_window . 'wincmd w'
 
-    setlocal cursorline
-
-    redir => old_hi
-        silent execute 'hi CursorLine'
-    redir END
-    let old_hi = split(old_hi, '\n')[0]
-    let old_hi = substitute(old_hi, 'xxx', '', '')
-
-    hi CursorLine guibg=#3a3a3a
-    redraw
-    sleep 20m
-
-    hi CursorLine guibg=#4a4a4a
-    redraw
-    sleep 30m
-
-    hi CursorLine guibg=#3a3a3a
-    redraw
-    sleep 30m
-
-    hi CursorLine guibg=#2a2a2a
-    redraw
-    sleep 20m
-
-    execute 'hi ' . old_hi
-
-    windo set cursorline
-    execute current_window . 'wincmd w'
-endfunction
-
-" }}}
 
 " Powerline configuration ------------------------------------------------- {{{
 

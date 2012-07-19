@@ -90,7 +90,7 @@ set cmdheight=2                 " use a status bar that is 2 rows high
 " }}}
 
 " Vim behaviour {{{
-set hidden                      " hide buffers instead of closing them this
+"set hidden                      " hide buffers instead of closing them this
                                 "    means that the current buffer can be put
                                 "    to background without being written; and
                                 "    that marks and undo history are preserved

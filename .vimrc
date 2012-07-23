@@ -35,10 +35,10 @@ syntax on
 
 " Editing behaviour {{{
 set showmode                    " always show what mode we're currently editing in
-set nowrap                      " don't wrap lines
+set wrap                      " don't wrap lines
+set linebreak
 set tabstop=4                   " a tab is four spaces
 set softtabstop=4               " when hitting <BS>, pretend like a tab is removed, even if spaces
-set expandtab                   " expand tabs by default (overloadable per file type later)
 set shiftwidth=4                " number of spaces to use for autoindenting
 set shiftround                  " use multiple of shiftwidth when indenting with '<' and '>'
 set backspace=indent,eol,start  " allow backspacing over everything in insert mode
@@ -56,7 +56,6 @@ set virtualedit=all             " allow the cursor to go in to "invalid" places
 set hlsearch                    " highlight search terms
 set incsearch                   " show search matches as you type
 set gdefault                    " search/replace "globally" (on a line) by default
-set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·
 
 set nolist                      " don't show invisible characters by default,
                                 " but it is enabled for some file types (see later)
@@ -124,6 +123,7 @@ set nomodeline                  " disable mode lines (security measure)
 "set ttyfast                     " always use a fast terminal
 set cursorline                  " underline the current line, for quick orientation
 
+autocmd vimenter * if !argc() | NERDTree | endif " make nerdTree start automatically when vim is opened"
 
 " Highlighting {{{
 if &t_Co > 2 || has("gui_running")
@@ -223,9 +223,6 @@ cnoremap w!! w !sudo tee % >/dev/null
 nnoremap <Tab> %
 vnoremap <Tab> %
 
-" Folding
-nnoremap <Space> za
-vnoremap <Space> za
 
 " Strip all trailing whitespace from a file, using ,w
 nnoremap <leader>W :%s/\s\+$//<CR>:let @/=''<CR>
@@ -242,14 +239,6 @@ nnoremap <leader>v V`]
 " Gundo.vim
 nnoremap <F5> :GundoToggle<CR>
 " }}}
-
-
-
-
-
-
-
-
 
 
 " TagList settings {{{
@@ -292,176 +281,6 @@ match ErrorMsg '^\(<\|=\|>\)\{7\}\([^=].\+\)\?$'
 nnoremap <silent> <leader>c /^\(<\\|=\\|>\)\{7\}\([^=].\+\)\?$<CR>
 " }}}
 
-" Filetype specific handling {{{
-" only do this part when compiled with support for autocommands
-if has("autocmd")
-    augroup invisible_chars "{{{
-        au!
-
-        " Show invisible characters in all of these files
-        autocmd filetype vim setlocal list
-        autocmd filetype python,rst setlocal list
-        autocmd filetype ruby setlocal list
-        autocmd filetype javascript,css setlocal list
-    augroup end "}}}
-
-    augroup vim_files "{{{
-        au!
-
-        " Bind <F1> to show the keyword under cursor
-        " general help can still be entered manually, with :h
-        autocmd filetype vim noremap <buffer> <F1> <Esc>:help <C-r><C-w><CR>
-        autocmd filetype vim noremap! <buffer> <F1> <Esc>:help <C-r><C-w><CR>
-    augroup end "}}}
-
-    augroup html_files "{{{
-        au!
-
-        " This function detects, based on HTML content, whether this is a
-        " Django template, or a plain HTML file, and sets filetype accordingly
-        fun! s:DetectHTMLVariant()
-            let n = 1
-            while n < 50 && n < line("$")
-                " check for django
-                if getline(n) =~ '{%\s*\(extends\|load\|block\|if\|for\|include\|trans\)\>'
-                    set ft=htmldjango.html
-                    return
-                endif
-                let n = n + 1
-            endwhile
-            " go with html
-            set ft=html
-        endfun
-
-        autocmd BufNewFile,BufRead *.html,*.htm call s:DetectHTMLVariant()
-
-        " Auto-closing of HTML/XML tags
-        let g:closetag_default_xml=1
-        autocmd filetype html,htmldjango let b:closetag_html_style=1
-        autocmd filetype html,xhtml,xml source ~/.vim/scripts/closetag.vim
-    augroup end " }}}
-
-    augroup python_files "{{{
-        au!
-
-        " This function detects, based on Python content, whether this is a
-        " Django file, which may enabling snippet completion for it
-        fun! s:DetectPythonVariant()
-            let n = 1
-            while n < 50 && n < line("$")
-                " check for django
-                if getline(n) =~ 'import\s\+\<django\>' || getline(n) =~ 'from\s\+\<django\>\s\+import'
-                    set ft=python.django
-                    "set syntax=python
-                    return
-                endif
-                let n = n + 1
-            endwhile
-            " go with html
-            set ft=python
-        endfun
-        autocmd BufNewFile,BufRead *.py call s:DetectPythonVariant()
-
-        " PEP8 compliance (set 1 tab = 4 chars explicitly, even if set
-        " earlier, as it is important)
-        autocmd filetype python setlocal expandtab shiftwidth=4 tabstop=4 softtabstop=4
-        autocmd filetype python setlocal textwidth=78
-        autocmd filetype python match ErrorMsg '\%>80v.\+'
-
-        " But disable autowrapping as it is super annoying
-        autocmd filetype python setlocal formatoptions-=t
-
-        " Folding for Python (uses syntax/python.vim for fold definitions)
-        "autocmd filetype python,rst setlocal nofoldenable
-        "autocmd filetype python setlocal foldmethod=expr
-
-        " Python runners
-        autocmd filetype python noremap <buffer> <F5> :w<CR>:!python %<CR>
-        autocmd filetype python inoremap <buffer> <F5> <Esc>:w<CR>:!python %<CR>
-        autocmd filetype python noremap <buffer> <S-F5> :w<CR>:!ipython %<CR>
-        autocmd filetype python inoremap <buffer> <S-F5> <Esc>:w<CR>:!ipython %<CR>
-
-        " Automatic insertion of breakpoints
-        autocmd filetype python nnoremap <buffer> <leader>bp :normal Oimport pdb; pdb.set_trace()<Esc>
-
-        " Toggling True/False
-        autocmd filetype python nnoremap <silent> <C-t> mmviw:s/True\\|False/\={'True':'False','False':'True'}[submatch(0)]/<CR>`m:nohlsearch<CR>
-
-        " Run a quick static syntax check every time we save a Python file
-        autocmd BufWritePost *.py call Flake8()
-    augroup end " }}}
-
-    augroup markdown_files "{{{
-        au!
-
-        autocmd filetype markdown noremap <buffer> <leader>p :w<CR>:!open -a Marked %<CR><CR>
-    augroup end " }}}
-
-    augroup ruby_files "{{{
-        au!
-
-        autocmd filetype ruby setlocal expandtab shiftwidth=2 tabstop=2 softtabstop=2
-    augroup end " }}}
-
-    augroup rst_files "{{{
-        au!
-
-        " Auto-wrap text around 74 chars
-        autocmd filetype rst setlocal textwidth=74
-        autocmd filetype rst setlocal formatoptions+=nqt
-        autocmd filetype rst match ErrorMsg '\%>74v.\+'
-    augroup end " }}}
-
-    augroup css_files "{{{
-        au!
-
-        autocmd filetype css,less setlocal foldmethod=marker foldmarker={,}
-    augroup end "}}}
-
-    augroup javascript_files "{{{
-        au!
-
-        autocmd filetype javascript setlocal expandtab
-        autocmd filetype javascript setlocal listchars=trail:·,extends:#,nbsp:·
-        autocmd filetype javascript setlocal foldmethod=marker foldmarker={,}
-
-        " Toggling True/False
-        autocmd filetype javascript nnoremap <silent> <C-t> mmviw:s/true\\|false/\={'true':'false','false':'true'}[submatch(0)]/<CR>`m:nohlsearch<CR>
-    augroup end "}}}
-
-    augroup textile_files "{{{
-        au!
-
-        autocmd filetype textile set tw=78 wrap
-
-        " Render YAML front matter inside Textile documents as comments
-        autocmd filetype textile syntax region frontmatter start=/\%^---$/ end=/^---$/
-        autocmd filetype textile highlight link frontmatter Comment
-    augroup end "}}}
-endif
-" }}}
-
-" Skeleton processing {{{
-
-if has("autocmd")
-
-    "if !exists('*LoadTemplate')
-    "function LoadTemplate(file)
-        "" Add skeleton fillings for Python (normal and unittest) files
-        "if a:file =~ 'test_.*\.py$'
-            "execute "0r ~/.vim/skeleton/test_template.py"
-        "elseif a:file =~ '.*\.py$'
-            "execute "0r ~/.vim/skeleton/template.py"
-        "endif
-    "endfunction
-    "endif
-
-    "autocmd BufNewFile * call LoadTemplate(@%)
-
-endif " has("autocmd")
-
-" }}}
-
 " Restore cursor position upon reopening files {{{
 autocmd BufReadPost *
     \ if line("'\"") > 0 && line("'\"") <= line("$") |
@@ -493,9 +312,6 @@ nnoremap <leader>4 yypVr-
 nnoremap <leader>5 yypVr^
 nnoremap <leader>6 yypVr"
 
-iab lorem Lorem ipsum dolor sit amet, consectetur adipiscing elit
-iab llorem Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Etiam lacus ligula, accumsan id imperdiet rhoncus, dapibus vitae arcu.  Nulla non quam erat, luctus consequat nisi
-iab lllorem Lorem ipsum dolor sit amet, consectetur adipiscing elit.  Etiam lacus ligula, accumsan id imperdiet rhoncus, dapibus vitae arcu.  Nulla non quam erat, luctus consequat nisi.  Integer hendrerit lacus sagittis erat fermentum tincidunt.  Cras vel dui neque.  In sagittis commodo luctus.  Mauris non metus dolor, ut suscipit dui.  Aliquam mauris lacus, laoreet et consequat quis, bibendum id ipsum.  Donec gravida, diam id imperdiet cursus, nunc nisl bibendum sapien, eget tempor neque elit in tortor
 
 if has("gui_running")
     "set guifont=saxMono:h14 linespace=3
@@ -524,14 +340,3 @@ else
     set bg=dark
     colorscheme molokai_deep
 endif
-
-
-
-
-
-" Powerline configuration ------------------------------------------------- {{{
-
-"let g:Powerline_symbols = 'compatible'
-let g:Powerline_symbols = 'fancy'
-
-" }}}

@@ -155,6 +155,10 @@ nnoremap mk :make<CR>
 nnoremap ' `
 nnoremap ` '
 
+
+" Swap Colon and semicolon
+nnoremap ; :
+nnoremap : ;
 " Use the damn hjkl keys
 " noremap <up> <nop>
 " noremap <down> <nop>
